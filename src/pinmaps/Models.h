@@ -43,6 +43,11 @@
   #define PINMAP_STR "MaxESP v4"
   #include "Pins.MaxESP4.h"
 #endif
+#if PINMAP == ESP32_TMC2209_ROTOR
+  #define PINMAP_STR "ESP32 TMC2209 Rotator"
+  #include "Pins.ESP32_TMC2209_ROTOR.h"
+#endif
+
 #if PINMAP == CNC3
   #define PINMAP_STR "CNC v3"
   #include "Pins.CNC3.h"

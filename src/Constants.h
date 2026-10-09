@@ -42,7 +42,8 @@
 
 #define SAL_XB1                     24     // SAL-XB1 telescope mount controller
 
-#define PINMAP_LAST                 24
+#define ESP32_TMC2209_ROTOR         25
+#define PINMAP_LAST                 25
 
 // WEATHER sensors (temperature, pressure, and humidity)
 #define WEATHER_FIRST               1

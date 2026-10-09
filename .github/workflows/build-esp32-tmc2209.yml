@@ -1,0 +1,61 @@
+name: Build ESP32 TMC2209 Rotor
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "Config.h"
+      - "OnStepX.ino"
+      - "src/**"
+      - ".github/workflows/build-esp32-tmc2209.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  esp32-rotor:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout custom rotor firmware
+        uses: actions/checkout@v4
+      - name: Setup arduino-cli
+        uses: arduino/setup-arduino-cli@v2
+      - name: Install ESP32 Arduino Core 2.0.17
+        shell: bash
+        run: |
+          arduino-cli config init
+          arduino-cli config set board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@2.0.17
+      - name: Install original OnStepX TMC2209 UART library
+        shell: bash
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/ci-libraries"
+          git clone --depth 1 https://github.com/hjd1964/TMC2209.git "$GITHUB_WORKSPACE/ci-libraries/TMC2209"
+          test -f "$GITHUB_WORKSPACE/ci-libraries/TMC2209/src/TMC2209.h" || test -f "$GITHUB_WORKSPACE/ci-libraries/TMC2209/TMC2209.h"
+      - name: Validate rotor pinout
+        shell: bash
+        run: |
+          grep -Eq '^#define PINMAP +ESP32_TMC2209_ROTOR' Config.h
+          grep -Eq '^#define AXIS3_DRIVER_MODEL +TMC2209' Config.h
+          grep -Eq '^  #define AXIS3_ENABLE_PIN 33$' src/pinmaps/Pins.ESP32_TMC2209_ROTOR.h
+          grep -Eq '^  #define AXIS3_STEP_PIN 26$' src/pinmaps/Pins.ESP32_TMC2209_ROTOR.h
+          grep -Eq '^  #define AXIS3_DIR_PIN 25$' src/pinmaps/Pins.ESP32_TMC2209_ROTOR.h
+          grep -Eq '^    #define SERIAL_TMC_RX 16$' src/pinmaps/Pins.ESP32_TMC2209_ROTOR.h
+          grep -Eq '^    #define SERIAL_TMC_TX 32$' src/pinmaps/Pins.ESP32_TMC2209_ROTOR.h
+      - name: Compile flashable ESP32 firmware
+        shell: bash
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/firmware-build"
+          arduino-cli compile --fqbn esp32:esp32:esp32 --libraries "$GITHUB_WORKSPACE/ci-libraries" --output-dir "$GITHUB_WORKSPACE/firmware-build" "$GITHUB_WORKSPACE"
+          ls -lh "$GITHUB_WORKSPACE/firmware-build/"
+          test -s "$GITHUB_WORKSPACE/firmware-build/OnStepX.ino.bin"
+      - name: Upload ESP32 binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: OnStepX-ESP32-WROOM-TMC2209-BIN
+          path: firmware-build/*.bin
+          retention-days: 30
+          if-no-files-found: error
